@@ -1,109 +1,106 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import { AuthContextType, User, RegisterData } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
+const API_URL = 'http://localhost:4000/api/auth';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check for existing session
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    
+
     if (storedUser && token) {
       setUser(JSON.parse(storedUser));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
-    setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const register = async (data: RegisterData): Promise<boolean> => {
     setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock login logic - In production, this would be API calls
-    const mockUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const foundUser = mockUsers.find((u: User) => u.email === email);
-    
-    if (foundUser && foundUser.isVerified) {
-      const token = 'mock-jwt-token-' + Date.now();
-      localStorage.setItem('user', JSON.stringify(foundUser));
-      localStorage.setItem('token', token);
-      setUser(foundUser);
+    try {
+      const res = await axios.post(`${API_URL}/register`, data);
       setIsLoading(false);
       return true;
+    } catch (err: any) {
+      setIsLoading(false);
+      throw new Error(err.response?.data?.message ?? 'Registration failed');
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
-  const register = async (userData: RegisterData): Promise<boolean> => {
+  const verifyEmail = async (email: string, code: string): Promise<boolean> => {
     setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newUser: User = {
-      id: 'user-' + Date.now(),
-      email: userData.email,
-      role: userData.role,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      isVerified: false,
-      createdAt: new Date(),
-      ...userData
-    };
-
-    // Store in localStorage (in production, this would be API call)
-    const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    existingUsers.push(newUser);
-    localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
-    
-    setIsLoading(false);
-    return true;
-  };
-
-  const verifyEmail = async (token: string): Promise<boolean> => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock verification logic
-    const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const userIndex = users.findIndex((u: User) => u.id === token);
-    
-    if (userIndex !== -1) {
-      users[userIndex].isVerified = true;
-      localStorage.setItem('registeredUsers', JSON.stringify(users));
+    try {
+      await axios.post(`${API_URL}/verify-email`, { email, code });
       setIsLoading(false);
       return true;
+    } catch (err: any) {
+      setIsLoading(false);
+      throw new Error(err.response?.data?.message ?? 'Email verification failed');
     }
-    
-    setIsLoading(false);
-    return false;
+  };
+
+  const resendVerificationCode = async (email: string): Promise<string> => {
+    setIsLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/resend-verification-code`, { email });
+      setIsLoading(false);
+      return res.data.message;
+    } catch (err: any) {
+      setIsLoading(false);
+      throw new Error(err.response?.data?.message ?? 'Resend verification code failed');
+    }
+  };
+
+  const login = async (email: string, password: string, role: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/login`, { email, password, role });
+
+      // Save user & token immediately
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      localStorage.setItem('token', res.data.token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+      setUser(res.data.user);
+
+      return true;
+    } catch (err: any) {
+      console.error('Login error:', err.response?.data?.message ?? err.message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
+    delete axios.defaults.headers.common['Authorization'];
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, verifyEmail, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        register,
+        verifyEmail,
+        resendVerificationCode,
+        login,
+        logout,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

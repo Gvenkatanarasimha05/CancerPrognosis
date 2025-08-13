@@ -8,39 +8,45 @@ const VerifyEmailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isVerified, setIsVerified] = useState(false);
-  
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendError, setResendError] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
+
   const location = useLocation();
   const navigate = useNavigate();
-  const { verifyEmail } = useAuth();
-  
+  const { verifyEmail, resendVerificationCode } = useAuth();
+
   const email = location.state?.email || '';
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-
     try {
-      // Mock verification - in production, this would validate the actual code
-      const success = await verifyEmail(verificationCode);
+      const success = await verifyEmail(email, verificationCode);
       if (success) {
         setIsVerified(true);
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        setTimeout(() => navigate('/login'), 2000);
       } else {
         setError('Invalid verification code. Please try again.');
       }
-    } catch (err) {
-      setError('An error occurred during verification.');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during verification.');
     }
-
     setIsLoading(false);
   };
 
   const resendCode = async () => {
-    // Mock resend logic
-    alert('Verification code resent to ' + email);
+    setResendLoading(true);
+    setResendError('');
+    setResendMessage('');
+    try {
+      const response = await resendVerificationCode(email);
+      setResendMessage(response.message || 'Verification code resent successfully.');
+    } catch (err: any) {
+      setResendError(err.message || 'Failed to resend verification code.');
+    }
+    setResendLoading(false);
   };
 
   if (isVerified) {
@@ -59,7 +65,7 @@ const VerifyEmailPage: React.FC = () => {
             <p className="text-gray-600 mb-6">
               Your email has been verified. You will be redirected to the login page shortly.
             </p>
-            <Link 
+            <Link
               to="/login"
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
@@ -131,13 +137,20 @@ const VerifyEmailPage: React.FC = () => {
               Didn't receive the code?{' '}
               <button
                 onClick={resendCode}
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                disabled={resendLoading}
+                className="text-blue-600 hover:text-blue-700 font-medium disabled:text-blue-400"
               >
-                Resend code
+                {resendLoading ? 'Resending...' : 'Resend code'}
               </button>
             </p>
-            <Link 
-              to="/register" 
+            {resendError && (
+              <p className="text-red-600 text-sm mt-2">{resendError}</p>
+            )}
+            {resendMessage && (
+              <p className="text-green-600 text-sm mt-2">{resendMessage}</p>
+            )}
+            <Link
+              to="/register"
               className="block mt-2 text-sm text-gray-600 hover:text-gray-900"
             >
               Back to registration

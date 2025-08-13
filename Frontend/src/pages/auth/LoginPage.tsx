@@ -6,6 +6,7 @@ import { Eye, EyeOff, Heart } from 'lucide-react';
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('patient'); // default role
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,15 +20,27 @@ const LoginPage: React.FC = () => {
     setError('');
 
     try {
-      const success = await login(email, password);
+      const success = await login(email, password, role); // send role to backend
       if (success) {
-        // Navigation will be handled by the App component based on user role
-        navigate('/');
+        // Navigate based on role
+        switch (role) {
+          case 'patient':
+            navigate('/patient-dashboard');
+            break;
+          case 'doctor':
+            navigate('/doctor-dashboard');
+            break;
+          case 'admin':
+            navigate('/admin-dashboard');
+            break;
+          default:
+            navigate('/');
+        }
       } else {
-        setError('Invalid email or password. Please make sure your email is verified.');
+        setError('Invalid credentials or email not verified.');
       }
-    } catch (err) {
-      setError('An error occurred during login. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during login.');
     }
 
     setIsLoading(false);
@@ -52,6 +65,25 @@ const LoginPage: React.FC = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
           <form onSubmit={handleSubmit} className="space-y-6">
+             {/* Role */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                Login as
+              </label>
+              <select
+                id="role"
+                name="role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="patient">Patient</option>
+                <option value="doctor">Doctor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            
+            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email Address
@@ -69,6 +101,7 @@ const LoginPage: React.FC = () => {
               />
             </div>
 
+            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
@@ -99,6 +132,9 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
+           
+
+            {/* Remember + Forgot */}
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
@@ -111,20 +147,28 @@ const LoginPage: React.FC = () => {
                   Remember me
                 </label>
               </div>
-
               <div className="text-sm">
-                <a href="#" className="text-blue-600 hover:text-blue-700">
+                <Link to="/password-reset" className="text-blue-600 hover:text-blue-700">
                   Forgot password?
-                </a>
+                </Link>
               </div>
             </div>
 
+            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
-
+<div className="mt-6 text-center">
+            <span className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign up
+              </Link>
+            </span>
+          </div>
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
@@ -138,33 +182,9 @@ const LoginPage: React.FC = () => {
               ) : (
                 'Sign in'
               )}
+              
             </button>
-
-            {/* Demo Accounts */}
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <p className="text-sm text-gray-600 text-center mb-4">Demo Accounts (for testing):</p>
-              <div className="space-y-2 text-xs">
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <strong>Patient:</strong> patient@demo.com / password
-                </div>
-                <div className="bg-teal-50 p-3 rounded-lg">
-                  <strong>Doctor:</strong> doctor@demo.com / password
-                </div>
-                <div className="bg-purple-50 p-3 rounded-lg">
-                  <strong>Admin:</strong> admin@demo.com / password
-                </div>
-              </div>
-            </div>
           </form>
-
-          <div className="mt-6 text-center">
-            <span className="text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-                Create one now
-              </Link>
-            </span>
-          </div>
         </div>
       </div>
     </div>

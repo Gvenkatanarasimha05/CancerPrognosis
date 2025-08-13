@@ -15,44 +15,82 @@ const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState(1); // 1: Role selection, 2: Basic info, 3: Role-specific info
+  const [step, setStep] = useState(1);
 
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    let value: any = e.target.value;
+
+    // Convert experience to number
+    if (e.target.name === 'experience') {
+      value = Number(value);
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: value,
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+  // Validate required fields based on step and role
+  const validate = (): boolean => {
+    if (step === 1) return true; // role selection step
 
-    try {
-      const success = await register(formData);
-      if (success) {
-        navigate('/verify-email', { state: { email: formData.email } });
-      } else {
-        setError('Registration failed. Please try again.');
-      }
-    } catch (err) {
-      setError('An error occurred during registration.');
+    // Basic required fields for step 2
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+      setError('Please fill in all required fields.');
+      return false;
     }
 
-    setIsLoading(false);
+    // Role-specific validation for step 3
+    if (step === 3) {
+      if (formData.role === 'patient') {
+        if (!formData.dateOfBirth || !formData.gender || !formData.phone || !formData.emergencyContact) {
+          setError('Please fill in all patient details.');
+          return false;
+        }
+      } else if (formData.role === 'doctor') {
+        if (!formData.licenseNumber || !formData.specialization) {
+          setError('Please fill in all doctor details.');
+          return false;
+        }
+      }
+    }
+
+    setError('');
+    return true;
   };
 
   const nextStep = () => {
+    if (!validate()) return;
     setStep(step + 1);
   };
 
   const prevStep = () => {
+    setError('');
     setStep(step - 1);
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setIsLoading(true);
+  try {
+    const success = await register(formData);
+    if (success) {
+      navigate('/verify-email', { state: { email: formData.email } });
+    } else {
+      setError('Registration failed. Please try again.');
+    }
+  } catch (error: any) {
+    setError(error.message || 'An error occurred during registration.');
+  }
+  setIsLoading(false);
+};
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -70,17 +108,19 @@ const RegisterPage: React.FC = () => {
             <div className="flex items-center justify-between">
               {[1, 2, 3].map((stepNum) => (
                 <div key={stepNum} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step >= stepNum 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-200 text-gray-600'
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      step >= stepNum ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
                     {step > stepNum ? <CheckCircle className="w-5 h-5" /> : stepNum}
                   </div>
                   {stepNum < 3 && (
-                    <div className={`w-16 h-1 mx-2 ${
-                      step > stepNum ? 'bg-blue-600' : 'bg-gray-200'
-                    }`} />
+                    <div
+                      className={`w-16 h-1 mx-2 ${
+                        step > stepNum ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                    />
                   )}
                 </div>
               ))}
@@ -103,7 +143,7 @@ const RegisterPage: React.FC = () => {
                   <div className="grid grid-cols-1 gap-4">
                     <button
                       type="button"
-                      onClick={() => setFormData({...formData, role: 'patient'})}
+                      onClick={() => setFormData({ ...formData, role: 'patient' })}
                       className={`p-4 border-2 rounded-lg text-left transition-colors ${
                         formData.role === 'patient'
                           ? 'border-blue-600 bg-blue-50'
@@ -120,10 +160,10 @@ const RegisterPage: React.FC = () => {
                         </div>
                       </div>
                     </button>
-                    
+
                     <button
                       type="button"
-                      onClick={() => setFormData({...formData, role: 'doctor'})}
+                      onClick={() => setFormData({ ...formData, role: 'doctor' })}
                       className={`p-4 border-2 rounded-lg text-left transition-colors ${
                         formData.role === 'doctor'
                           ? 'border-teal-600 bg-teal-50'
@@ -158,7 +198,10 @@ const RegisterPage: React.FC = () => {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="firstName"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       First Name
                     </label>
                     <input
@@ -172,7 +215,10 @@ const RegisterPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="lastName"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       Last Name
                     </label>
                     <input
@@ -203,7 +249,10 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Password
                   </label>
                   <div className="mt-1 relative">
@@ -256,7 +305,10 @@ const RegisterPage: React.FC = () => {
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">
+                        <label
+                          htmlFor="dateOfBirth"
+                          className="block text-sm font-medium text-gray-700"
+                        >
                           Date of Birth
                         </label>
                         <input
@@ -269,7 +321,10 @@ const RegisterPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+                        <label
+                          htmlFor="gender"
+                          className="block text-sm font-medium text-gray-700"
+                        >
                           Gender
                         </label>
                         <select
@@ -287,7 +342,10 @@ const RegisterPage: React.FC = () => {
                       </div>
                     </div>
                     <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                      <label
+                        htmlFor="phone"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         Phone Number
                       </label>
                       <input
@@ -300,7 +358,10 @@ const RegisterPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label htmlFor="emergencyContact" className="block text-sm font-medium text-gray-700">
+                      <label
+                        htmlFor="emergencyContact"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         Emergency Contact
                       </label>
                       <input
@@ -316,7 +377,10 @@ const RegisterPage: React.FC = () => {
                 ) : (
                   <>
                     <div>
-                      <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700">
+                      <label
+                        htmlFor="licenseNumber"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         Medical License Number *
                       </label>
                       <input
@@ -330,7 +394,10 @@ const RegisterPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label htmlFor="specialization" className="block text-sm font-medium text-gray-700">
+                      <label
+                        htmlFor="specialization"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         Specialization *
                       </label>
                       <input
@@ -346,7 +413,10 @@ const RegisterPage: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label htmlFor="experience" className="block text-sm font-medium text-gray-700">
+                        <label
+                          htmlFor="experience"
+                          className="block text-sm font-medium text-gray-700"
+                        >
                           Years of Experience
                         </label>
                         <input
@@ -359,7 +429,10 @@ const RegisterPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label htmlFor="qualification" className="block text-sm font-medium text-gray-700">
+                        <label
+                          htmlFor="qualification"
+                          className="block text-sm font-medium text-gray-700"
+                        >
                           Qualification
                         </label>
                         <input
@@ -374,7 +447,10 @@ const RegisterPage: React.FC = () => {
                       </div>
                     </div>
                     <div>
-                      <label htmlFor="hospital" className="block text-sm font-medium text-gray-700">
+                      <label
+                        htmlFor="hospital"
+                        className="block text-sm font-medium text-gray-700"
+                      >
                         Hospital/Clinic Affiliation
                       </label>
                       <input
@@ -389,9 +465,7 @@ const RegisterPage: React.FC = () => {
                   </>
                 )}
 
-                {error && (
-                  <div className="text-red-600 text-sm text-center">{error}</div>
-                )}
+                {error && <div className="text-red-600 text-sm text-center">{error}</div>}
 
                 <div className="flex space-x-4">
                   <button

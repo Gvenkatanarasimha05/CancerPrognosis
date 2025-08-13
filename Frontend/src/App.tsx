@@ -8,6 +8,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
+import PasswordResetPage from './pages/auth/PasswordResetPage';
 import PatientDashboard from './pages/dashboards/PatientDashboard';
 import DoctorDashboard from './pages/dashboards/DoctorDashboard';
 import AdminDashboard from './pages/dashboards/AdminDashboard';
@@ -76,6 +77,9 @@ const AppRoutes: React.FC = () => {
           } />
           <Route path="/register" element={
             user ? <Navigate to={getDashboardPath(user.role)} /> : <RegisterPage />
+          } />
+          <Route path="/password-reset" element={
+            user ? <Navigate to={getDashboardPath(user.role)} /> : <PasswordResetPage />
           } />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           
