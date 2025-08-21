@@ -31,10 +31,11 @@ export interface Doctor extends User {
 
 export interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, role?: string) => Promise<boolean>; // ✅ optional role
   logout: () => void;
   register: (userData: RegisterData) => Promise<boolean>;
-  verifyEmail: (token: string) => Promise<boolean>;
+  verifyEmail: (email: string, code: string) => Promise<boolean>; // ✅ matches context
+  resendVerificationCode: (email: string) => Promise<string>;
   isLoading: boolean;
 }
 
@@ -55,4 +56,4 @@ export interface RegisterData {
   experience?: number;
   qualification?: string;
   hospital?: string;
-}
+}       

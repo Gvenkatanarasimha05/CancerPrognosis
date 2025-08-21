@@ -70,7 +70,7 @@ const Header: React.FC = () => {
                   to="/login" 
                   className={`${isLandingPage && !scrolled ? 'text-white' : 'text-gray-600'} hover:text-blue-600 transition-colors`}
                 >
-                  Login
+                  Sign in
                 </Link>
                 <Link 
                   to="/register" 
@@ -79,7 +79,7 @@ const Header: React.FC = () => {
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                   } px-6 py-2 rounded-lg transition-colors`}
                 >
-                  Get Started
+                  Sign up
                 </Link>
               </>
             ) : (

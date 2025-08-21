@@ -152,7 +152,7 @@ const LandingPage: React.FC = () => {
               },
               {
                 icon: <Shield className="h-8 w-8 text-red-600" />,
-                title: 'Secure & Private',
+                title: 'HIPAA Compliance ',
                 desc: 'Your medical data is safeguarded with advanced encryption, strict access controls, and compliance with healthcare privacy regulations worldwide. ',
                 points: [],
                 color: 'bg-red-100 group-hover:bg-red-200'
@@ -200,8 +200,7 @@ const LandingPage: React.FC = () => {
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-6">About Cancer Prognosis</h2>
               <p className="text-xl text-gray-600 mb-6">
-                Founded by a team of healthcare professionals and AI researchers,
-                MedPortal is revolutionizing the way patients and doctors interact with medical information.
+                Built by a team of passionate developers, CancerPrognosis leverages modern web technologies and AI techniques to transform the way patients and doctors manage and interact with healthcare information.
               </p>
               <p className="text-gray-600 mb-8">
                 Our mission is to democratize healthcare access through intelligent technology,
@@ -268,7 +267,7 @@ const LandingPage: React.FC = () => {
         >
           <h2 className="text-4xl font-bold mb-6">Ready to Transform Your Healthcare Experience?</h2>
           <p className="text-xl text-blue-100 mb-8">
-            Join thousands of patients and doctors who trust MedPortal for their healthcare needs.
+            Join thousands of patients and doctors who trust CancerPrognosis for their healthcare needs.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

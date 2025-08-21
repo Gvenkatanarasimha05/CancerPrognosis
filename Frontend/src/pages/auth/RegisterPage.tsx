@@ -4,14 +4,28 @@ import { useAuth } from '../../contexts/AuthContext';
 import { RegisterData } from '../../types/auth';
 import { User, Stethoscope, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
+type Gender = 'male' | 'female' | 'other';
+
 const RegisterPage: React.FC = () => {
-  const [formData, setFormData] = useState<RegisterData>({
+  const [formData, setFormData] = useState<RegisterData & { gender?: Gender }>({
     email: '',
     password: '',
     firstName: '',
     lastName: '',
     role: 'patient',
+    // Patient fields
+    dateOfBirth: '',
+    gender: undefined, // ✅ fixed type error
+    phone: '',
+    emergencyContact: '',
+    // Doctor fields
+    licenseNumber: '',
+    specialization: '',
+    experience: 0,
+    qualification: '',
+    hospital: '',
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,28 +39,25 @@ const RegisterPage: React.FC = () => {
   ) => {
     let value: any = e.target.value;
 
-    // Convert experience to number
-    if (e.target.name === 'experience') {
-      value = Number(value);
-    }
+    if (e.target.name === 'experience') value = Number(value);
+    if (e.target.name === 'gender') value = value as Gender;
 
-    setFormData({
-      ...formData,
-      [e.target.name]: value,
-    });
+    setFormData(prev => ({ ...prev, [e.target.name]: value }));
   };
 
-  // Validate required fields based on step and role
-  const validate = (): boolean => {
-    if (step === 1) return true; // role selection step
-
-    // Basic required fields for step 2
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError('Please fill in all required fields.');
+  const validateStep = (): boolean => {
+    if (step === 1 && !formData.role) {
+      setError('Please select a role.');
       return false;
     }
 
-    // Role-specific validation for step 3
+    if (step === 2) {
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+        setError('Please fill in all required fields.');
+        return false;
+      }
+    }
+
     if (step === 3) {
       if (formData.role === 'patient') {
         if (!formData.dateOfBirth || !formData.gender || !formData.phone || !formData.emergencyContact) {
@@ -66,39 +77,63 @@ const RegisterPage: React.FC = () => {
   };
 
   const nextStep = () => {
-    if (!validate()) return;
-    setStep(step + 1);
+    if (!validateStep()) return;
+    setStep(prev => prev + 1);
   };
 
   const prevStep = () => {
     setError('');
-    setStep(step - 1);
+    setStep(prev => prev - 1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError('');
-  setIsLoading(true);
-  try {
-    const success = await register(formData);
-    if (success) {
-      navigate('/verify-email', { state: { email: formData.email } });
-    } else {
-      setError('Registration failed. Please try again.');
+    e.preventDefault();
+    if (!validateStep()) return;
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const payload: any = {
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        role: formData.role,
+      };
+
+      if (formData.role === 'patient') {
+        payload.dateOfBirth = formData.dateOfBirth;
+        payload.gender = formData.gender;
+        payload.phone = formData.phone;
+        payload.emergencyContact = formData.emergencyContact;
+      } else if (formData.role === 'doctor') {
+        payload.licenseNumber = formData.licenseNumber;
+        payload.specialization = formData.specialization;
+        payload.experience = formData.experience;
+        payload.qualification = formData.qualification;
+        payload.hospital = formData.hospital;
+      }
+
+      const success = await register(payload);
+
+      if (success) {
+        navigate('/verify-email', { state: { email: formData.email } });
+      } else {
+        setError('Registration failed. Please try again.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during registration.');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error: any) {
-    setError(error.message || 'An error occurred during registration.');
-  }
-  setIsLoading(false);
-};
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Create Your Account</h2>
-          <p className="mt-2 text-gray-600">Join MedPortal and start your health journey</p>
-        </div>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <h2 className="text-3xl font-bold text-gray-900">Create Your Account</h2>
+        <p className="mt-2 text-gray-600">Join CancerPrognosis and start your health journey</p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -117,9 +152,7 @@ const RegisterPage: React.FC = () => {
                   </div>
                   {stepNum < 3 && (
                     <div
-                      className={`w-16 h-1 mx-2 ${
-                        step > stepNum ? 'bg-blue-600' : 'bg-gray-200'
-                      }`}
+                      className={`w-16 h-1 mx-2 ${step > stepNum ? 'bg-blue-600' : 'bg-gray-200'}`}
                     />
                   )}
                 </div>
@@ -133,21 +166,19 @@ const RegisterPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Step 1: Role Selection */}
+            {/* Step 1: Role */}
             {step === 1 && (
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-4">
-                    I am registering as a:
+                    I am registering as:
                   </label>
                   <div className="grid grid-cols-1 gap-4">
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, role: 'patient' })}
                       className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                        formData.role === 'patient'
-                          ? 'border-blue-600 bg-blue-50'
-                          : 'border-gray-300 hover:border-gray-400'
+                        formData.role === 'patient' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
                       }`}
                     >
                       <div className="flex items-center space-x-3">
@@ -165,45 +196,38 @@ const RegisterPage: React.FC = () => {
                       type="button"
                       onClick={() => setFormData({ ...formData, role: 'doctor' })}
                       className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                        formData.role === 'doctor'
-                          ? 'border-teal-600 bg-teal-50'
-                          : 'border-gray-300 hover:border-gray-400'
+                        formData.role === 'doctor' ? 'border-teal-600 bg-teal-50' : 'border-gray-300 hover:border-gray-400'
                       }`}
                     >
                       <div className="flex items-center space-x-3">
                         <Stethoscope className="h-6 w-6 text-teal-600" />
                         <div>
                           <div className="font-semibold text-gray-900">Doctor</div>
-                          <div className="text-sm text-gray-600">
-                            Providing medical care and consultations
-                          </div>
+                          <div className="text-sm text-gray-600">Providing medical care</div>
                         </div>
                       </div>
                     </button>
                   </div>
                 </div>
 
+                {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors mt-4"
                 >
                   Continue
                 </button>
               </div>
             )}
 
-            {/* Step 2: Basic Information */}
+            {/* Step 2: Basic Info */}
             {step === 2 && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label
-                      htmlFor="firstName"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      First Name
-                    </label>
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
                     <input
                       id="firstName"
                       name="firstName"
@@ -215,12 +239,7 @@ const RegisterPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="lastName"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Last Name
-                    </label>
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name</label>
                     <input
                       id="lastName"
                       name="lastName"
@@ -234,9 +253,7 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email Address
-                  </label>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
                   <input
                     id="email"
                     name="email"
@@ -249,12 +266,7 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Password
-                  </label>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
                   <div className="mt-1 relative">
                     <input
                       id="password"
@@ -270,47 +282,28 @@ const RegisterPage: React.FC = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-gray-400" />
-                      )}
+                      {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
                     </button>
                   </div>
                 </div>
 
+                {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+
                 <div className="flex space-x-4">
-                  <button
-                    type="button"
-                    onClick={prevStep}
-                    className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Continue
-                  </button>
+                  <button type="button" onClick={prevStep} className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">Back</button>
+                  <button type="button" onClick={nextStep} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors">Continue</button>
                 </div>
               </div>
             )}
 
-            {/* Step 3: Role-specific Information */}
+            {/* Step 3: Role-specific */}
             {step === 3 && (
               <div className="space-y-6">
                 {formData.role === 'patient' ? (
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label
-                          htmlFor="dateOfBirth"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          Date of Birth
-                        </label>
+                        <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">Date of Birth</label>
                         <input
                           id="dateOfBirth"
                           name="dateOfBirth"
@@ -321,20 +314,15 @@ const RegisterPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label
-                          htmlFor="gender"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          Gender
-                        </label>
+                        <label htmlFor="gender" className="block text-sm font-medium text-gray-700">Gender</label>
                         <select
                           id="gender"
                           name="gender"
-                          value={formData.gender || ''}
+                          value={formData.gender ?? ''}
                           onChange={handleInputChange}
                           className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Select Gender</option>
+                          <option value="" disabled>Select Gender</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
                           <option value="other">Other</option>
@@ -342,12 +330,7 @@ const RegisterPage: React.FC = () => {
                       </div>
                     </div>
                     <div>
-                      <label
-                        htmlFor="phone"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Phone Number
-                      </label>
+                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone Number</label>
                       <input
                         id="phone"
                         name="phone"
@@ -358,12 +341,7 @@ const RegisterPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label
-                        htmlFor="emergencyContact"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Emergency Contact
-                      </label>
+                      <label htmlFor="emergencyContact" className="block text-sm font-medium text-gray-700">Emergency Contact</label>
                       <input
                         id="emergencyContact"
                         name="emergencyContact"
@@ -377,48 +355,30 @@ const RegisterPage: React.FC = () => {
                 ) : (
                   <>
                     <div>
-                      <label
-                        htmlFor="licenseNumber"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Medical License Number *
-                      </label>
+                      <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700">License Number</label>
                       <input
                         id="licenseNumber"
                         name="licenseNumber"
                         type="text"
-                        required
                         value={formData.licenseNumber || ''}
                         onChange={handleInputChange}
                         className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                       />
                     </div>
                     <div>
-                      <label
-                        htmlFor="specialization"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Specialization *
-                      </label>
+                      <label htmlFor="specialization" className="block text-sm font-medium text-gray-700">Specialization</label>
                       <input
                         id="specialization"
                         name="specialization"
                         type="text"
-                        required
                         value={formData.specialization || ''}
                         onChange={handleInputChange}
-                        placeholder="e.g., Cardiology, Neurology"
                         className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label
-                          htmlFor="experience"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          Years of Experience
-                        </label>
+                        <label htmlFor="experience" className="block text-sm font-medium text-gray-700">Experience (years)</label>
                         <input
                           id="experience"
                           name="experience"
@@ -429,30 +389,19 @@ const RegisterPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label
-                          htmlFor="qualification"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          Qualification
-                        </label>
+                        <label htmlFor="qualification" className="block text-sm font-medium text-gray-700">Qualification</label>
                         <input
                           id="qualification"
                           name="qualification"
                           type="text"
                           value={formData.qualification || ''}
                           onChange={handleInputChange}
-                          placeholder="e.g., MBBS, MD"
                           className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
                         />
                       </div>
                     </div>
                     <div>
-                      <label
-                        htmlFor="hospital"
-                        className="block text-sm font-medium text-gray-700"
-                      >
-                        Hospital/Clinic Affiliation
-                      </label>
+                      <label htmlFor="hospital" className="block text-sm font-medium text-gray-700">Hospital/Clinic</label>
                       <input
                         id="hospital"
                         name="hospital"
@@ -467,19 +416,9 @@ const RegisterPage: React.FC = () => {
 
                 {error && <div className="text-red-600 text-sm text-center">{error}</div>}
 
-                <div className="flex space-x-4">
-                  <button
-                    type="button"
-                    onClick={prevStep}
-                    className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
-                  >
+                <div className="flex space-x-4 mt-4">
+                  <button type="button" onClick={prevStep} className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">Back</button>
+                  <button type="submit" disabled={isLoading} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400">
                     {isLoading ? 'Creating Account...' : 'Create Account'}
                   </button>
                 </div>
@@ -490,9 +429,7 @@ const RegisterPage: React.FC = () => {
           <div className="mt-6 text-center">
             <span className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
-                Sign in here
-              </Link>
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
             </span>
           </div>
         </div>

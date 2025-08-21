@@ -113,7 +113,7 @@ const VerifyEmailPage: React.FC = () => {
                 maxLength={6}
               />
               <p className="mt-2 text-sm text-gray-500">
-                For demo purposes, enter any 6-digit code (e.g., 123456)
+                Enter the verification code from your email to continue.
               </p>
             </div>
 

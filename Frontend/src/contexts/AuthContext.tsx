@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+
 import { AuthContextType, User, RegisterData } from '../types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -15,7 +16,9 @@ const API_URL = 'http://localhost:4000/api/auth';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
 
+  // Load stored user + token on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -26,48 +29,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // ✅ Register new user
   const register = async (data: RegisterData): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/register`, data);
-      setIsLoading(false);
+      await axios.post(`${API_URL}/register`, data);
       return true;
     } catch (err: any) {
-      setIsLoading(false);
       throw new Error(err.response?.data?.message ?? 'Registration failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // ✅ Verify email with email + code
   const verifyEmail = async (email: string, code: string): Promise<boolean> => {
     setIsLoading(true);
     try {
       await axios.post(`${API_URL}/verify-email`, { email, code });
-      setIsLoading(false);
       return true;
     } catch (err: any) {
-      setIsLoading(false);
       throw new Error(err.response?.data?.message ?? 'Email verification failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // ✅ Resend verification code
   const resendVerificationCode = async (email: string): Promise<string> => {
     setIsLoading(true);
     try {
       const res = await axios.post(`${API_URL}/resend-verification-code`, { email });
-      setIsLoading(false);
       return res.data.message;
     } catch (err: any) {
-      setIsLoading(false);
       throw new Error(err.response?.data?.message ?? 'Resend verification code failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const login = async (email: string, password: string, role: string): Promise<boolean> => {
+  // ✅ Login (with optional role)
+  const login = async (email: string, password: string, role?: string): Promise<boolean> => {
     setIsLoading(true);
     try {
       const res = await axios.post(`${API_URL}/login`, { email, password, role });
 
-      // Save user & token immediately
+      // Save user & token
       localStorage.setItem('user', JSON.stringify(res.data.user));
       localStorage.setItem('token', res.data.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
@@ -82,11 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // ✅ Logout → send to Landing Page instead of Login
   const logout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
+
+    
   };
 
   return (
