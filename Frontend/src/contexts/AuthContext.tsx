@@ -70,24 +70,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ✅ Login (with optional role)
   const login = async (email: string, password: string, role?: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const res = await axios.post(`${API_URL}/login`, { email, password, role });
+  setIsLoading(true);
+  try {
+    const res = await axios.post(`${API_URL}/login`, { email, password, role });
 
-      // Save user & token
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      localStorage.setItem('token', res.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-      setUser(res.data.user);
+    // If doctor is not approved, block login
+    if (res.data.user.role === "doctor" && res.data.user.approvalStatus === "pending") {
+  throw new Error("Your account is pending approval by admin.");
+}
 
-      return true;
-    } catch (err: any) {
-      console.error('Login error:', err.response?.data?.message ?? err.message);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+if (res.data.user.role === "doctor" && res.data.user.approvalStatus === "rejected") {
+  throw new Error("Your account is rejected by admin.");
+}
+
+    // Save user & token
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+    localStorage.setItem('token', res.data.token);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+    setUser(res.data.user);
+
+    return true;
+  } catch (err: any) {
+    console.error('Login error:', err.response?.data?.message ?? err.message);
+    alert(err.response?.data?.message ?? err.message);
+    return false;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // ✅ Logout → send to Landing Page instead of Login
   const logout = () => {

@@ -6,9 +6,9 @@ import { Eye, EyeOff, Heart } from 'lucide-react';
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('patient');
+  const [role, setRole] = useState<'patient' | 'doctor' | 'admin'>('admin');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   const { login } = useAuth();
@@ -22,27 +22,18 @@ const LoginPage: React.FC = () => {
     try {
       const success = await login(email, password, role);
       if (success) {
-        switch (role) {
-          case 'patient':
-            navigate('/patient-dashboard');
-            break;
-          case 'doctor':
-            navigate('/doctor-dashboard');
-            break;
-          case 'admin':
-            navigate('/admin-dashboard');
-            break;
-          default:
-            navigate('/');
-        }
+        // Redirect based on role
+        if (role === 'patient') navigate('/patient-dashboard');
+        else if (role === 'doctor') navigate('/doctor-dashboard');
+        else if (role === 'admin') navigate('/admin-dashboard');
       } else {
         setError('Invalid credentials or email not verified.');
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred during login.');
+      setError(err?.response?.data?.message || err.message || 'An error occurred during login.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -85,7 +76,7 @@ const LoginPage: React.FC = () => {
                   id="role"
                   name="role"
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => setRole(e.target.value as 'patient' | 'doctor' | 'admin')}
                   className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-3 text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="patient">Patient</option>

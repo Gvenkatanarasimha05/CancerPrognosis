@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Users, FileText, MessageSquare, Calendar, Activity, User } from 'lucide-react';
 import OverviewTab from './doctor/tabs/OverviewTab';
-import PatientsTab from './doctor/tabs/PatientsTab';
 import ConsultationsTab from './doctor/tabs/ConsultationsTab';
 import ReportsTab from './doctor/tabs/ReportsTab';
 import AppointmentsTab from './doctor/tabs/AppointmentsTab';
@@ -13,7 +12,6 @@ const DoctorDashboard: React.FC = () => {
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: Activity },
-    { id: 'patients', name: 'Patients', icon: Users },
     { id: 'consultations', name: 'Consultations', icon: MessageSquare },
     { id: 'reports', name: 'Reports', icon: FileText },
     { id: 'appointments', name: 'Appointments', icon: Calendar },

@@ -1,24 +1,23 @@
 import React, { useState } from 'react';
 import { 
-  User, FileText, Brain, Download, Activity,
-  Heart
+  User, FileText, Brain, Download, Activity, Heart
 } from 'lucide-react';
 
 // Import your content components
 import OverviewContent from './patient/tabs/OverviewContent';
 import ProfileContent from './patient/tabs/ProfileContent';
-import HistoryContent from './patient/tabs/HistoryContent';
 import PredictionContent from './patient/tabs/PredictionContent';
-import ReportsContent from './patient/tabs/ReportsContent';
+import DoctorConsultation from './patient/tabs/DoctorConsultation';
+import HistoryContent from './patient/tabs/HistoryContent';
 import DataContent from './patient/tabs/DataContent';
 
 const tabs = [
   { id: 'overview', name: 'Overview', icon: Activity },
-  { id: 'profile', name: 'Profile', icon: User },
-  { id: 'history', name: 'Medical History', icon: FileText },
   { id: 'prediction', name: 'AI Prediction', icon: Brain },
-  { id: 'reports', name: 'Doctor Reports', icon: Heart },
+  { id: 'consultation', name: 'Doctor Consultation', icon: Heart },
+  { id: 'history', name: 'Medical History', icon: FileText },
   { id: 'data', name: 'Manage Data', icon: Download },
+  { id: 'profile', name: 'Profile', icon: User },
 ];
 
 const tabComponents: { [key: string]: React.FC } = {
@@ -26,7 +25,7 @@ const tabComponents: { [key: string]: React.FC } = {
   profile: ProfileContent,
   history: HistoryContent,
   prediction: PredictionContent,
-  reports: ReportsContent,
+  consultation: DoctorConsultation,
   data: DataContent,
 };
 
@@ -35,9 +34,9 @@ const PatientDashboard: React.FC = () => {
   const ActiveTabComponent = tabComponents[activeTab];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-sm">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="max-w-7xl mx-auto flex-1 flex flex-col w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-lg shadow-sm flex flex-col flex-1 overflow-hidden">
           {/* Tabs */}
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
@@ -61,8 +60,8 @@ const PatientDashboard: React.FC = () => {
             </nav>
           </div>
 
-          {/* Content */}
-          <div className="p-6">
+          {/* Content Area */}
+          <div className={`flex-1 overflow-hidden ${activeTab === 'prediction' ? 'p-0 flex flex-col' : 'p-6'}`}>
             <ActiveTabComponent />
           </div>
         </div>

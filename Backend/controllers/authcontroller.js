@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const PatientData = require("../models/PatientData"); // ✅ correct casing
+const PatientData = require("../models/PatientData");
 const sendEmail = require("../utils/sendEmail");
 
 // Helper to generate OTP
@@ -32,11 +32,21 @@ exports.register = async (req, res) => {
     } = req.body;
 
     if (!firstName || !lastName || !email || !password || !role) {
-      return res.status(400).json({ message: "All required fields must be provided" });
+      return res
+        .status(400)
+        .json({ message: "All required fields must be provided" });
+    }
+
+    if (role === "admin") {
+      return res
+        .status(403)
+        .json({ message: "You cannot register as admin" });
     }
 
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existingUser) return res.status(400).json({ message: "Email already registered" });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
 
     const { code, expiry } = generateOTP();
 
@@ -53,11 +63,12 @@ exports.register = async (req, res) => {
       hospital,
       verificationCode: code,
       verificationCodeExpiry: expiry,
+      approvalStatus: role === "doctor" ? "pending" : "approved", // 👈 doctors = pending
     });
 
     await user.save();
 
-    // Create PatientData if patient
+    // Create PatientData if role is patient
     if (role === "patient") {
       const patientData = new PatientData({
         user: user._id,
@@ -83,8 +94,9 @@ exports.register = async (req, res) => {
         email: user.email,
         role: user.role,
         firstName: user.firstName,
-        lastName: user.lastName,
+        lastName: user.lastName,  
         isVerified: user.isVerified,
+        approvalStatus: user.approvalStatus,
       },
     });
   } catch (err) {
@@ -96,28 +108,51 @@ exports.register = async (req, res) => {
 // ---------------- Login ----------------
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
-    if (!user.isVerified) return res.status(403).json({ message: "Please verify your email first" });
+    const { email, password, role } = req.body;
+
+    if (!email || !password || !role) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.role !== role) {
+      return res.status(403).json({ message: `This account is not registered as ${role}` });
+    }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-    // fetch PatientData if patient
-    let patientData = null;
-    if (user.role === "patient") {
-      patientData = await PatientData.findOne({ user: user._id });
+    // email check
+    if (user.role !== "admin" && !user.isVerified) {
+      return res.status(400).json({ message: "Please verify your email before logging in" });
     }
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+   
+    if (user.role === "doctor" && user.approvalStatus == "pending") {
+      return res.status(403).json({ message: "Doctor account apporval is pending by Admin" });
+    }
+
+    if (user.role === "doctor" && user.approvalStatus == "rejected") {
+      return res.status(403).json({ message: "Doctor account has rejcted by Admin" });
+    }
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
     res.status(200).json({
       message: "Login successful",
       token,
       user: {
-        ...user.toObject(),
-        patientData,
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        approvalStatus: user.approvalStatus,
       },
     });
   } catch (err) {
@@ -132,6 +167,7 @@ exports.getProfile = async (req, res) => {
     const user = await User.findById(req.user.id).select(
       "-password -verificationCode -verificationCodeExpiry -passwordResetCode -passwordResetExpiry -__v"
     );
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
     let patientData = {};
@@ -140,7 +176,7 @@ exports.getProfile = async (req, res) => {
       if (pd) patientData = { ...pd };
     }
 
-    const profile = { ...user.toObject(), ...patientData }; // merge patient fields
+    const profile = { ...user.toObject(), ...patientData };
 
     res.json({
       success: true,
@@ -152,16 +188,18 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-
 // ---------------- Verify Email ----------------
 exports.verifyEmail = async (req, res) => {
   try {
     const { email, code } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
+
     if (!user) return res.status(400).json({ message: "User not found" });
     if (user.isVerified) return res.status(400).json({ message: "Email is already verified" });
     if (user.verificationCode !== code) return res.status(400).json({ message: "Invalid verification code" });
-    if (Date.now() > user.verificationCodeExpiry) return res.status(400).json({ message: "Verification code expired" });
+    if (Date.now() > user.verificationCodeExpiry) {
+      return res.status(400).json({ message: "Verification code expired" });
+    }
 
     user.isVerified = true;
     user.verificationCode = undefined;
@@ -175,13 +213,12 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-
-
 // ---------------- Resend Verification Code ----------------
 exports.resendVerificationCode = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
+
     if (!user) return res.status(404).json({ message: "User not found" });
     if (user.isVerified) return res.status(400).json({ message: "Email already verified" });
 
@@ -196,8 +233,7 @@ exports.resendVerificationCode = async (req, res) => {
       html: `<p>Your verification code is <b>${code}</b></p><p>This code will expire in 10 minutes.</p>`,
     });
 
-   res.json({ success: true, message: "Verification code resent successfully" });
-
+    res.json({ success: true, message: "Verification code resent successfully" });
   } catch (err) {
     console.error("Resend verification error:", err);
     res.status(500).json({ message: "Server error" });
@@ -209,6 +245,7 @@ exports.requestPasswordResetOTP = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
+
     if (!user) return res.status(400).json({ message: "User not found" });
 
     const { code, expiry } = generateOTP();
@@ -222,7 +259,6 @@ exports.requestPasswordResetOTP = async (req, res) => {
       html: `<p>Your OTP is: <b>${code}</b>. Expires in 10 minutes.</p>`,
     });
 
-    console.log("🔹 Password Reset OTP sent", { email, code, expiry, now: Date.now() });
     res.json({ message: "OTP sent to your email" });
   } catch (err) {
     console.error("Request password reset error:", err);
@@ -234,10 +270,12 @@ exports.verifyPasswordResetOTP = async (req, res) => {
   try {
     const { email, code } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) return res.status(400).json({ message: "User not found" });
 
+    if (!user) return res.status(400).json({ message: "User not found" });
     if (user.passwordResetCode !== code) return res.status(400).json({ message: "Invalid OTP" });
-    if (Date.now() > user.passwordResetExpiry) return res.status(400).json({ message: "OTP expired" });
+    if (Date.now() > user.passwordResetExpiry) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
 
     res.json({ message: "OTP verified. You can reset your password now." });
   } catch (err) {
@@ -250,10 +288,12 @@ exports.resetPasswordWithOTP = async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
     const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) return res.status(400).json({ message: "User not found" });
 
+    if (!user) return res.status(400).json({ message: "User not found" });
     if (user.passwordResetCode !== code) return res.status(400).json({ message: "Invalid OTP" });
-    if (Date.now() > user.passwordResetExpiry) return res.status(400).json({ message: "OTP expired" });
+    if (Date.now() > user.passwordResetExpiry) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
 
     user.password = newPassword.trim(); // pre-save hook will hash it
     user.passwordResetCode = undefined;

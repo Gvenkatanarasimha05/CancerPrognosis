@@ -19,24 +19,15 @@ export interface Patient extends User {
   allergies?: string[];
 }
 
+
 export interface Doctor extends User {
   role: 'doctor';
   licenseNumber: string;
   specialization: string;
   experience: number;
   qualification: string;
-  isApproved: boolean;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   hospital?: string;
-}
-
-export interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string, role?: string) => Promise<boolean>; // ✅ optional role
-  logout: () => void;
-  register: (userData: RegisterData) => Promise<boolean>;
-  verifyEmail: (email: string, code: string) => Promise<boolean>; // ✅ matches context
-  resendVerificationCode: (email: string) => Promise<string>;
-  isLoading: boolean;
 }
 
 export interface RegisterData {

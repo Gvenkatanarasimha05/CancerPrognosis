@@ -1,11 +1,44 @@
-import React from 'react';
+import React,{ useEffect, useState } from 'react';
 import { Users, Calendar, CheckCircle, FileText, Clock } from 'lucide-react';
+import API from '../../../../api/api';
+
+interface Profile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  licenseNumber?:  string;
+  specialization?: string;
+  experience?:  number ;
+  qualification?: string;
+  hospital?: string;
+}
 
 const OverviewTab: React.FC = () => {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await API.get('/doctor/me');
+        if (res.data && res.data.data) setProfile(res.data.data);
+      } catch (err) {
+        console.error('❌ Failed to load profile', err);
+        setError('Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  if (loading) return <p>Loading overview...</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
   return (
     <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, Dr. Johnson!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, Dr.{profile?.firstName} {profile?.lastName}!</h2>
           <p className="text-gray-600">Here's your practice overview for today.</p>
         </div>
     

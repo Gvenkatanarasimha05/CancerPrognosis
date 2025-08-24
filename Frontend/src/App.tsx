@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
@@ -63,6 +63,10 @@ const initializeDemoUsers = () => {
 
 const AppRoutes: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+
+  // Hide Footer for admin dashboard
+  const hideFooter = location.pathname.startsWith("/admin-dashboard");
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -102,7 +106,7 @@ const AppRoutes: React.FC = () => {
           } />
         </Routes>
       </main>
-      <Footer />
+      {!hideFooter && <Footer />}
     </div>
   );
 };

@@ -7,12 +7,14 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const patientRoutes = require('./routes/patientRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
+const adminRoutes = require("./routes/adminRoutes");
+
 
 // Admin seeding
 const createAdminIfNotExists = require('./utils/createAdmin');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 
 // ---------------- CORS Setup ----------------
 app.use(cors({
@@ -30,6 +32,8 @@ app.get('/', (req, res) => res.send('API is running'));
 app.use('/api/auth', authRoutes);
 app.use('/api/patient', patientRoutes);
 app.use('/api/doctor', doctorRoutes);
+app.use("/api/admin", adminRoutes);
+
 
 // ---------------- Global Error Handler ----------------
 app.use((err, req, res, next) => {

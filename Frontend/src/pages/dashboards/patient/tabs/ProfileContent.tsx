@@ -61,14 +61,12 @@ const ProfileContent: React.FC = () => {
       setSaving(true);
       const payload: any = {};
       if (profile.role === "patient") {
+        payload.email = profile.email;
         payload.dateOfBirth = profile.dateOfBirth;
         payload.gender = profile.gender;
         payload.phone = profile.phone;
         payload.emergencyContact = profile.emergencyContact;
-      } else if (profile.role === "doctor") {
-        payload.licenseNumber = profile.licenseNumber;
-        payload.specialization = profile.specialization;
-      }
+      } 
       const response = await API.put("/patient/update", payload);
       console.log("✅ Update response:", response.data);
       setEditMode(false);
@@ -103,7 +101,7 @@ const ProfileContent: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input type="email" name="email" value={profile.email} readOnly className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100" />
+            <input type="email" name="email" value={profile.email || ""} readOnly={!editMode} onChange={handleChange} className={`mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 ${editMode ? "bg-white" : "bg-gray-100"}`} />
           </div>
 
           {/* Patient fields */}
