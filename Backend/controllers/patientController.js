@@ -63,14 +63,25 @@ exports.updateProfile = async (req, res) => {
 };
 
 // GET /patient/data – full patient data including assigned doctor
+// GET /patient/data – full patient data including assigned doctor and appointments
 exports.getPatientData = async (req, res) => {
   try {
     const data = await PatientData.findOne({ user: req.user._id })
-      .populate('assignedDoctor', 'firstName lastName specialization hospital');
+      .populate('assignedDoctor', 'firstName lastName specialization hospital')
+      .populate('appointments.doctor', 'firstName lastName specialization hospital')
+      .populate('user', 'firstName lastName email role'); // <- populate user info
+
+         
+      console.log('Patient Data:', data);
 
     if (!data) {
       return res.status(404).json({ message: 'Patient data not found' });
     }
+
+    // Filter upcoming appointments
+    const upcomingAppointments = data.appointments
+      .filter(app => app.status === 'upcoming')
+      .sort((a, b) => a.date - b.date); // sort by date ascending
 
     res.json({
       success: true,
@@ -86,13 +97,16 @@ exports.getPatientData = async (req, res) => {
         reports: data.reports,
         aiPredictions: data.aiPredictions,
         assignedDoctor: data.assignedDoctor || null,
-      }
+        upcomingAppointments: upcomingAppointments || [],
+      },
     });
   } catch (err) {
     console.error("❌ getPatientData error:", err);
+ 
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 // POST /patient/assign-doctor – assign a doctor
 exports.assignDoctor = async (req, res) => {
@@ -112,6 +126,58 @@ exports.assignDoctor = async (req, res) => {
     });
   } catch (err) {
     console.error('❌ assignDoctor error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+// GET /patient/me – full profile + dashboard data
+exports.getDashboardData = async (req, res) => {
+  try {
+    let patientData = await PatientData.findOne({ user: req.user._id })
+      .populate('assignedDoctor', 'firstName lastName specialization hospital');
+
+    if (!patientData) {
+      patientData = new PatientData({ user: req.user._id });
+      await patientData.save();
+    }
+
+    // Recent activities – last 5
+    const recentActivities = (patientData.history || [])
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5);
+
+    // Upcoming appointments – for now, we can mock or use future history items with type 'appointment'
+    const upcomingAppointments = (patientData.history || [])
+      .filter(item => item.date && new Date(item.date) > new Date() && item.type === 'appointment')
+      .slice(0, 5)
+      .map(item => ({
+        doctor: item.doctor || (patientData.assignedDoctor ? `${patientData.assignedDoctor.firstName} ${patientData.assignedDoctor.lastName}` : 'TBD'),
+        specialty: item.specialty || patientData.problem || 'General',
+        date: item.date,
+      }));
+
+    res.json({
+      success: true,
+      data: {
+        _id: req.user._id,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email,
+        role: req.user.role,
+        dateOfBirth: patientData.dateOfBirth || '',
+        gender: patientData.gender || '',
+        phone: patientData.phone || '',
+        emergencyContact: patientData.emergencyContact || '',
+        medicalHistory: patientData.medicalHistory || [],
+        allergies: patientData.allergies || [],
+        reports: patientData.reports || [],
+        aiPredictions: patientData.aiPredictions || [],
+        assignedDoctor: patientData.assignedDoctor || null,
+        recentActivities,
+        upcomingAppointments,
+      }
+    });
+  } catch (err) {
+    console.error('❌ getDashboardData error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

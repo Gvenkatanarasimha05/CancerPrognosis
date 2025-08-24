@@ -18,6 +18,18 @@ const patientDataSchema = new mongoose.Schema(
         title: String,
         description: String,
         date: Date,
+        type: { type: String, enum: ['activity', 'appointment'], default: 'activity' },
+        doctor: { type: String }, // optional doctor for activity or appointment
+        specialty: { type: String },
+      },
+    ],
+
+    appointments: [
+      {
+        doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        specialty: { type: String },
+        date: { type: Date, required: true },
+        status: { type: String, enum: ['upcoming', 'completed', 'cancelled'], default: 'upcoming' },
       },
     ],
 
@@ -38,19 +50,18 @@ const patientDataSchema = new mongoose.Schema(
       },
     ],
 
-    // 🔹 Assign doctor reference
-    assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    problem: { type: String } // helpful for matching with doctor's specialization
+    assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    problem: { type: String }, // helpful for matching with doctor's specialization
   },
   { timestamps: true }
 );
 
 // Auto-increment patientId
-patientDataSchema.pre("save", async function (next) {
+patientDataSchema.pre('save', async function (next) {
   if (this.isNew && !this.patientId) {
     try {
       const lastPatient = await this.constructor.findOne().sort({ patientId: -1 });
-      this.patientId = lastPatient ? lastPatient.patientId + 1 : 1; // start from 1
+      this.patientId = lastPatient ? lastPatient.patientId + 1 : 1;
     } catch (err) {
       return next(err);
     }
@@ -58,4 +69,4 @@ patientDataSchema.pre("save", async function (next) {
   next();
 });
 
-module.exports = mongoose.models.PatientData || mongoose.model("PatientData", patientDataSchema);
+module.exports = mongoose.models.PatientData || mongoose.model('PatientData', patientDataSchema);
