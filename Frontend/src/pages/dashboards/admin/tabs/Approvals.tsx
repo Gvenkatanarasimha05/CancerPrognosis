@@ -100,6 +100,9 @@ const Approvals: React.FC = () => {
               {expanded === doctor._id && (
                 <div className="mt-3 border-t pt-3 text-sm space-y-1">
                   <p>
+                    <strong>Phone:</strong> {doctor.phone || "N/A"}
+                  </p>
+                  <p>
                     <strong>License Number:</strong> {doctor.licenseNumber}
                   </p>
                   <p>

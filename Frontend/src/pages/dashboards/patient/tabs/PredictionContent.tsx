@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Brain,
   Send,
@@ -16,6 +16,7 @@ interface Message {
   sender: "user" | "system";
   text: string;
 }
+
 interface Profile {
   _id: string;
   firstName: string;
@@ -23,6 +24,7 @@ interface Profile {
   gender?: string;
   phone?: number;
 }
+
 interface Doctor {
   _id: string;
   firstName: string;
@@ -30,324 +32,411 @@ interface Doctor {
   specialization: string;
 }
 
+type Props = {
+  setActiveTab: (tab: string) => void;
+};
+
+/* --------------------------
+  18 QUESTIONS
+--------------------------- */
 const symptomQuestions = [
-  "Please describe your symptoms:",
-  "How long have you had these symptoms?",
-  "Do you have any family history of cancer?",
-  "Do you smoke or consume alcohol?",
+  "Which part of your body is experiencing symptoms? (e.g., lungs, breast, skin, stomach, etc.)",
+  "What is your age?",
+  "What is your gender? (0 = Female, 1 = Male)",
+  "How frequently do you smoke? (0–10 scale)",
+  "How frequently do you consume alcohol? (0–10 scale)",
+  "What is your obesity level? (BMI-related, 0–10 scale)",
+  "Do you have any family history of cancer? (0 = No, 1 = Yes)",
+  "How often do you eat red meat? (0–10 scale)",
+  "How often do you eat salted/processed foods? (0–10 scale)",
+  "How much fruits & vegetables do you intake daily? (0–10 scale)",
+  "How active are you physically? (0–10 scale)",
+  "How much are you exposed to air pollution? (0–10 scale)",
+  "Are you exposed to occupational hazards? (0–10 scale)",
+  "Do you carry BRCA mutation? (0 = No, 1 = Yes)",
+  "Do you have H. Pylori infection? (0 = No, 1 = Yes)",
+  "What is your calcium intake level? (0–10 scale)",
+  "What is your BMI?",
+  "What is your physical activity level? (0–10 scale)",
 ];
 
-const PredictionContent: React.FC = () => {
+/* --------------------------
+ Format data → ML model
+--------------------------- */
+const formatForModel = (answers: any[]) => {
+  return {
+    Age: Number(answers[1]?.answer || 0),
+    Gender: Number(answers[2]?.answer || 0),
+    Smoking: Number(answers[3]?.answer || 0),
+    Alcohol_Use: Number(answers[4]?.answer || 0),
+    Obesity: Number(answers[5]?.answer || 0),
+    Family_History: Number(answers[6]?.answer || 0),
+    Diet_Red_Meat: Number(answers[7]?.answer || 0),
+    Diet_Salted_Processed: Number(answers[8]?.answer || 0),
+    Fruit_Veg_Intake: Number(answers[9]?.answer || 0),
+    Physical_Activity: Number(answers[10]?.answer || 0),
+    Air_Pollution: Number(answers[11]?.answer || 0),
+    Occupational_Hazards: Number(answers[12]?.answer || 0),
+    BRCA_Mutation: Number(answers[13]?.answer || 0),
+    H_Pylori_Infection: Number(answers[14]?.answer || 0),
+    Calcium_Intake: Number(answers[15]?.answer || 0),
+    BMI: Number(answers[16]?.answer || 0),
+    Physical_Activity_Level: Number(answers[17]?.answer || 0),
+  };
+};
+
+/* --------------------------
+ Call ML Model API
+--------------------------- */
+const callMLModel = async (fullQA: any[]) => {
+  try {
+    const formattedData = formatForModel(fullQA);
+    const token = localStorage.getItem("token");
+
+    const res = await axios.post(
+      "http://localhost:4000/api/predict",
+      {
+        ...formattedData,
+        body_part: fullQA[0].answer,
+        answers: fullQA,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const rawPred =
+      res.data.riskLevel ||
+      res.data.prediction ||
+      res.data.risk ||
+      "unknown";
+
+    return {
+      level: String(rawPred).toLowerCase(), 
+      msg: `🧠 AI Prediction Result: Your cancer risk is **${rawPred}**.`,
+    };
+  } catch (err) {
+    console.error("ML Prediction Error:", err);
+    return {
+      level: "unknown",
+      msg: "⚠️ AI service unavailable.",
+    };
+  }
+};
+
+/* --------------------------
+ Component Start
+--------------------------- */
+const PredictionContent: React.FC<Props> = ({ setActiveTab }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
-  const [prediction, setPrediction] = useState<string>("");
-  const [riskLevel, setRiskLevel] = useState<string>("");
+  const [prediction, setPrediction] = useState("");
+  const [riskLevel, setRiskLevel] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [showDoctors, setShowDoctors] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [assignedDoctor, setAssignedDoctor] = useState<Doctor | null>(null);
-  const [answers, setAnswers] = useState<string[]>([]);
+  const [answers, setAnswers] = useState<any[]>([]);
 
-  // Fetch patient profile
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  /* Auto scroll */
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await axios.get("http://localhost:4000/api/patient/me");
-        setProfile(res.data.data || res.data);
-      } catch (err) {
-        console.error("Failed to fetch profile:", err);
-      }
-    };
-    fetchProfile();
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  /* Fetch patient data */
+  useEffect(() => {
+    axios.get("http://localhost:4000/api/patient/me").then((res) => {
+      setProfile(res.data.data || res.data);
+    });
+
+    setMessages([{ sender: "system", text: symptomQuestions[0] }]);
   }, []);
 
-  // File Upload
+  /* File Upload */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setMessages((prev) => [
-        ...prev,
-        { sender: "system", text: `📂 File uploaded: ${e.target.files[0].name}` },
-      ]);
-    }
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+
+    setMessages((prev) => [
+      ...prev,
+      { sender: "system", text: `📂 File uploaded: ${f.name}` },
+    ]);
   };
 
-  // Analyze answers to decide risk
-  const analyzeRisk = (answers: string[]): { level: string; msg: string } => {
-    const allText = answers.join(" ").toLowerCase();
-    if (allText.includes("lump")) {
-      return {
-        level: "high",
-        msg: "⚠️ High Risk detected. Please consult a doctor immediately.\n\nDoctor Suggestions:\n- Schedule an appointment\n- Prepare medical history\n- Avoid self-medication",
-      };
-    } else if (allText.includes("skin")) {
-      return {
-        level: "moderate",
-        msg: "🟠 Moderate Risk detected.\n\nRecommended:\n- Maintain a healthy diet\n- Avoid smoking/alcohol\n- Follow proper medications\n- Regular exercise",
-      };
-    } else if (allText.includes("cough")) {
-      return {
-        level: "low",
-        msg: "🟢 Low Risk detected. No immediate danger, but stay cautious and attend regular check-ups.",
-      };
-    }
-    return {
-      level: "unknown",
-      msg: "ℹ️ Unable to determine risk clearly. Please provide more detailed symptoms or consult a doctor.",
-    };
-  };
-
-  // Send answer
+  /* Handle Send */
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    const newMessage: Message = { sender: "user", text: input };
-    setMessages((prev) => [...prev, newMessage]);
-    setAnswers((prev) => [...prev, input]);
+    const qna = {
+      question: symptomQuestions[step],
+      answer: input,
+    };
+
+    setAnswers((prev) => [...prev, qna]);
+    setMessages((prev) => [...prev, { sender: "user", text: input }]);
+
+    const currentStep = step;
     setInput("");
 
-    if (step < symptomQuestions.length - 1) {
+    if (currentStep < symptomQuestions.length - 1) {
+      setStep(currentStep + 1);
       setTimeout(() => {
         setMessages((prev) => [
           ...prev,
-          { sender: "system", text: symptomQuestions[step + 1] },
+          { sender: "system", text: symptomQuestions[currentStep + 1] },
         ]);
-      }, 600);
-      setStep(step + 1);
-    } else {
-      setLoading(true);
-      setTimeout(() => {
-        const outcome = analyzeRisk([...answers, input]);
-        setPrediction(outcome.msg);
-        setRiskLevel(outcome.level);
-        setMessages((prev) => [...prev, { sender: "system", text: outcome.msg }]);
-        setLoading(false);
-      }, 1500);
+      }, 300);
+      return;
+    }
+
+    /* Final Step → Predict */
+    setLoading(true);
+
+    const outcome = await callMLModel([...answers, qna]);
+
+    setPrediction(outcome.msg);
+    setRiskLevel(outcome.level);
+    setMessages((prev) => [...prev, { sender: "system", text: outcome.msg }]);
+
+    setLoading(false);
+
+    /* -----------------------------
+       MEDIUM + HIGH RISK LOGIC 
+    ----------------------------- */
+    if (outcome.level === "high" || outcome.level === "medium") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "system",
+          text:
+            outcome.level === "high"
+              ? "⚠️ High risk detected! You should consult a doctor immediately."
+              : "⚠️ Medium risk detected! Please consult a doctor as soon as possible.",
+        },
+      ]);
+
+      fetchDoctors(); // auto-load doctor list
     }
   };
 
-  // Reset for new prediction
+  /* Reset */
   const handleNewPrediction = () => {
-    setMessages([]);
-    setInput("");
     setStep(0);
+    setInput("");
     setFile(null);
     setPrediction("");
     setRiskLevel("");
     setAnswers([]);
     setAssignedDoctor(null);
+    setMessages([{ sender: "system", text: symptomQuestions[0] }]);
   };
 
-  // Download PDF
-  const handleDownloadPDF = () => {
-    if (!prediction) return;
+  /* Download PDF */
+  const handleDownloadPDF = async () => {
+    const token = localStorage.getItem("token");
+    const res = await axios.get("http://localhost:4000/api/patient/reports", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const latest = res.data.reports?.slice(-1)[0];
+    if (!latest) return alert("No report available.");
 
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text("Patient Prediction Report", 105, 20, { align: "center" });
+    doc.text("AI Prediction Report", 105, 20, { align: "center" });
+
     doc.setFontSize(12);
     doc.text(
-      `Patient Name: ${profile?.firstName || "N/A"} ${profile?.lastName || ""}`,
+      `Patient Name: ${profile?.firstName} ${profile?.lastName}`,
       20,
       40
     );
-    if (profile?.phone) doc.text(`Phone No: ${profile.phone}`, 20, 50);
-    if (profile?.gender) doc.text(`Gender: ${profile.gender}`, 20, 60);
-    doc.text(`Uploaded File: ${file?.name || "N/A"}`, 20, 80);
+    doc.text(`Phone: ${profile?.phone}`, 20, 50);
+    doc.text(`Gender: ${profile?.gender}`, 20, 60);
 
-    answers.forEach((ans, idx) => {
-      doc.text(`Q${idx + 1}: ${symptomQuestions[idx]}`, 20, 90 + idx * 15);
-      doc.text(`A${idx + 1}: ${ans}`, 25, 95 + idx * 15);
+    doc.text(`Risk Level: ${latest.report.prediction}`, 20, 80);
+    doc.text(`Message: ${latest.report.message}`, 20, 90);
+
+    doc.text("Answers:", 20, 110);
+    latest.report.answers.forEach((qa: any, index: number) => {
+      doc.text(
+        `${index + 1}. ${qa.question} — ${qa.answer}`,
+        25,
+        120 + index * 8
+      );
     });
 
-    doc.text("Prediction / Risk Analysis:", 20, 100 + answers.length * 15);
-    const lines = doc.splitTextToSize(prediction, 170);
-    doc.text(lines, 20, 110 + answers.length * 15);
-    doc.save("Patient_Report.pdf");
+    doc.save("AI_Report.pdf");
   };
 
-  // Fetch doctors
+  /* Fetch Doctors */
   const fetchDoctors = async () => {
-    try {
-      const res = await axios.get("http://localhost:4000/api/doctor/doctors");
-      setDoctors(res.data.data || res.data);
-      setShowDoctors(true);
-    } catch (err) {
-      console.error("Error fetching doctors:", err);
-    }
+    const res = await axios.get("http://localhost:4000/api/doctor/doctors");
+    setDoctors(res.data.data || res.data);
+    setShowDoctors(true);
   };
 
-  // Assign doctor
-const handleAssignDoctor = async (doc: any) => {
-  try {
-    const token = localStorage.getItem("token"); // patient's token
-    if (!token) return alert("You must be logged in");
+  /* Assign Doctor */
+  const handleAssignDoctor = async (doc: Doctor) => {
+    const token = localStorage.getItem("token");
 
-    const res = await axios.post(
+    await axios.post(
       "http://localhost:4000/api/patient/assign-doctor",
       { doctorId: doc._id },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (res.data.success) {
-      alert(`Doctor ${doc.firstName} ${doc.lastName} assigned successfully!`);
-      // Optionally update local state to show assigned doctor immediately
-      setAssignedDoctor(doc);
-    } else {
-      alert(res.data.message || "Failed to assign doctor");
-    }
-  } catch (err: any) {
-    console.error("Error assigning doctor:", err);
-    alert(err.response?.data?.message || "Server error");
-  }
-};
+    setAssignedDoctor(doc);
+    setShowDoctors(false);
 
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "system",
+        text: `🎉 Dr. ${doc.firstName} ${doc.lastName} assigned! Opening consultation...`,
+      },
+    ]);
 
-
+    setTimeout(() => setActiveTab("consultation"), 600);
+  };
 
   return (
     <div className="flex flex-col h-full w-full bg-white rounded-xl shadow-md p-4">
-      {/* Chat area */}
       <div className="flex-1 overflow-y-auto space-y-3 mb-4 p-2 border rounded-md bg-gray-50">
-        {messages.map((msg, idx) => (
+        {messages.map((m, i) => (
           <div
-            key={idx}
-            className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+            key={i}
+            className={`flex ${
+              m.sender === "user" ? "justify-end" : "justify-start"
+            }`}
           >
             <div
-              className={`px-4 py-2 rounded-xl text-sm max-w-[75%] whitespace-pre-line ${
-                msg.sender === "user" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-900"
+              className={`px-4 py-2 rounded-xl text-sm max-w-[75%] ${
+                m.sender === "user"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-900"
               }`}
             >
-              {msg.text}
+              {m.text}
             </div>
           </div>
         ))}
+
         {loading && (
-          <div className="flex justify-start">
-            <div className="px-4 py-2 rounded-xl bg-gray-200 text-gray-900 flex items-center space-x-2">
-              <Loader className="animate-spin w-4 h-4" /> <span>Analyzing...</span>
-            </div>
+          <div className="px-4 py-2 bg-gray-200 rounded-xl">
+            <Loader className="animate-spin w-4 h-4 inline-block mr-2" />
+            AI is analyzing...
           </div>
         )}
+
+        <div ref={chatEndRef} />
       </div>
 
       {/* File Upload */}
       <div className="flex items-center space-x-2 mb-2">
-        <label className="cursor-pointer flex items-center bg-gray-200 px-3 py-2 rounded-xl hover:bg-gray-300">
+        <label className="cursor-pointer flex items-center bg-gray-200 px-3 py-2 rounded-xl">
           <Upload className="w-4 h-4 mr-2" />
-          <span>{file ? file.name : "Upload Report"}</span>
+          <span>{file?.name || "Upload Report"}</span>
           <input type="file" className="hidden" onChange={handleFileChange} />
         </label>
       </div>
 
-      {/* Input + Buttons */}
+      {/* Input Box */}
       <div className="flex items-center space-x-2">
         <input
-          type="text"
-          placeholder={step === 0 ? symptomQuestions[0] : "Type your answer..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          placeholder={symptomQuestions[step]}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          className="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border rounded-xl px-4 py-2"
         />
+
         <button
           onClick={handleSend}
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 flex items-center"
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl"
         >
-          <Send className="w-4 h-4 mr-1" /> Send
+          <Send className="w-4 h-4" />
         </button>
 
         {prediction && (
           <>
             <button
               onClick={handleDownloadPDF}
-              className="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700 flex items-center"
+              className="bg-green-600 text-white px-4 py-2 rounded-xl"
             >
-              <Download className="w-4 h-4 mr-1" /> Download PDF
+              <Download className="w-4 h-4" />
             </button>
 
             <button
               onClick={handleNewPrediction}
-              className="bg-yellow-500 text-white px-4 py-2 rounded-xl hover:bg-yellow-600 flex items-center"
+              className="bg-yellow-500 text-white px-4 py-2 rounded-xl"
             >
-              <Brain className="w-4 h-4 mr-1" /> New Prediction
+              <Brain className="w-4 h-4" />
             </button>
           </>
         )}
       </div>
 
-      {/* Doctor Consultation */}
-      {riskLevel === "high" && !assignedDoctor && (
-        <div className="mt-4">
-          <button
-            onClick={fetchDoctors}
-            className="w-full bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 flex items-center justify-center"
-          >
-            <Stethoscope className="w-4 h-4 mr-2" /> Consult a Doctor
-          </button>
-        </div>
+      {/* CONSULT DOCTOR BUTTON — HIGH + MEDIUM RISK */}
+      {(riskLevel === "high" || riskLevel === "medium") && !assignedDoctor && (
+        <button
+          onClick={fetchDoctors}
+          className="mt-4 bg-red-600 text-white px-4 py-2 rounded-xl"
+        >
+          <Stethoscope className="w-4 h-4 inline-block mr-2" />
+          {riskLevel === "high"
+            ? "High Risk — Consult a Doctor"
+            : "Medium Risk — Consult a Doctor ASAP"}
+        </button>
       )}
 
-      {/* Doctor Selection Modal */}
+      {/* Doctor Modal */}
       {showDoctors && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-6 w-96 shadow-lg">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-xl p-6 w-96">
+            <div className="flex justify-between mb-4">
               <h2 className="text-lg font-bold">Available Doctors</h2>
-              <button onClick={() => setShowDoctors(false)}>
-                <X className="w-5 h-5" />
-              </button>
+              <X
+                className="cursor-pointer"
+                onClick={() => setShowDoctors(false)}
+              />
             </div>
-            {doctors.length === 0 ? (
-              <p>No doctors available.</p>
-            ) : (
-              <div className="space-y-2">
-                {doctors.map((doc) => (
-                  <div
-                    key={doc._id}
-                    className="flex justify-between items-center p-3 bg-gray-100 rounded-lg"
-                  >
-                    <span>
-                      {doc.firstName} {doc.lastName} - <i>{doc.specialization}</i>
-                    </span>
-                    <button
-                      onClick={() => handleAssignDoctor(doc)}
-                      className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 flex items-center"
-                    >
-                      <Check className="w-4 h-4 mr-1" /> Assign
-                    </button>
-                  </div>
-                ))}
+
+            {doctors.map((doc) => (
+              <div
+                key={doc._id}
+                className="flex justify-between p-3 bg-gray-100 mb-2 rounded-lg"
+              >
+                <span>
+                  {doc.firstName} {doc.lastName} — {doc.specialization}
+                </span>
+
+                <button
+                  onClick={() => handleAssignDoctor(doc)}
+                  className="bg-blue-600 text-white px-3 py-1 rounded-lg"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}
 
-      {/* Assigned Doctor */}
       {assignedDoctor && (
-        <div className="mt-4 p-3 bg-green-100 text-green-800 rounded-xl flex justify-between items-center">
-          <span>
-            ✅ You are now connected with{" "}
-            <b>
-              {assignedDoctor.firstName} {assignedDoctor.lastName}
-            </b>{" "}
-            ({assignedDoctor.specialization}).
-          </span>
-          <a
-            href="/doctor-consultation"
-            className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"
+        <div className="mt-4 p-3 bg-green-100 text-green-900 rounded-xl">
+          Assigned to Dr. {assignedDoctor.firstName}{" "}
+          {assignedDoctor.lastName}.{" "}
+          <button
+            onClick={() => setActiveTab("consultation")}
+            className="ml-2 underline text-blue-700"
           >
-            Go to Consultation
-          </a>
+            Go to Consultation →
+          </button>
         </div>
       )}
     </div>

@@ -5,12 +5,8 @@ const createAdminIfNotExists = async () => {
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (!adminEmail || !adminPassword) {
-      console.error("❌ ADMIN_EMAIL or ADMIN_PASSWORD not set in .env");
-      return;
-    }
+    if (!adminEmail || !adminPassword) return;
 
-    // Check if admin already exists
     const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (!existingAdmin) {
@@ -18,15 +14,15 @@ const createAdminIfNotExists = async () => {
         firstName: "Venkat",
         lastName: "Narasimha",
         email: adminEmail,
-        password: adminPassword, // plain password -> will be hashed by pre-save hook
+        password: adminPassword,
         role: "admin",
         isVerified: true,
       });
 
-      console.log("✅ Admin created:", adminEmail);
-    } 
+      console.log("Admin created:", adminEmail);
+    }
   } catch (err) {
-    console.error("❌ Error creating admin:", err);
+    console.error("Error creating admin:", err);
   }
 };
 

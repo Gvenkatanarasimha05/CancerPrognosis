@@ -3,12 +3,13 @@ const mongoose = require('mongoose');
 const patientDataSchema = new mongoose.Schema(
   {
     patientId: { type: Number, unique: true },
+
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
     dateOfBirth: { type: Date, required: true, default: Date.now },
-    gender: { type: String, enum: ['male', 'female', 'other'], required: true, default: 'other' },
-    phone: { type: String, required: true, default: '0000000000' },
-    emergencyContact: { type: String, required: true, default: '0000000000' },
+    gender: { type: String, enum: ['male', 'female', 'other'], default: 'other' },
+    phone: { type: String, default: '0000000000' },
+    emergencyContact: { type: String, default: '0000000000' },
 
     medicalHistory: [{ type: String }],
     allergies: [{ type: String }],
@@ -19,15 +20,15 @@ const patientDataSchema = new mongoose.Schema(
         description: String,
         date: Date,
         type: { type: String, enum: ['activity', 'appointment'], default: 'activity' },
-        doctor: { type: String }, // optional doctor for activity or appointment
-        specialty: { type: String },
+        doctor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        specialty: String,
       },
     ],
 
     appointments: [
       {
         doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        specialty: { type: String },
+        specialty: String,
         date: { type: Date, required: true },
         status: { type: String, enum: ['upcoming', 'completed', 'cancelled'], default: 'upcoming' },
       },
@@ -35,23 +36,42 @@ const patientDataSchema = new mongoose.Schema(
 
     reports: [
       {
-        doctor: String,
+        doctor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         specialty: String,
-        report: String,
-        date: Date,
+        report: {
+          answers: [
+            {
+              question: String,
+              answer: String,
+            },
+          ],
+          prediction: String,
+          message: String,
+        },
+        date: { type: Date, default: Date.now },
       },
     ],
 
     aiPredictions: [
       {
-        disease: String,
-        probability: Number,
-        date: Date,
+        riskLevel: String,
+        date: { type: Date, default: Date.now },
       },
     ],
 
-    assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    problem: { type: String }, // helpful for matching with doctor's specialization
+    consultation: {
+      notes: { type: String, default: "" },
+      medications: { type: String, default: "" },
+      files: [{ type: String }],
+    },
+
+    assignedDoctor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    problem: { type: String },
   },
   { timestamps: true }
 );
@@ -69,4 +89,6 @@ patientDataSchema.pre('save', async function (next) {
   next();
 });
 
-module.exports = mongoose.models.PatientData || mongoose.model('PatientData', patientDataSchema);
+module.exports =
+  mongoose.models.PatientData ||
+  mongoose.model('PatientData', patientDataSchema);

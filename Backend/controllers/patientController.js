@@ -1,11 +1,10 @@
 const PatientData = require("../models/PatientData");
 const User = require("../models/User");
 
-// GET /patient/me – basic profile info
+// Get patient profile
 exports.getProfile = async (req, res) => {
   try {
     let patientData = await PatientData.findOne({ user: req.user._id });
-
     if (!patientData) {
       patientData = new PatientData({ user: req.user._id });
       await patientData.save();
@@ -19,24 +18,32 @@ exports.getProfile = async (req, res) => {
         lastName: req.user.lastName,
         email: req.user.email,
         role: req.user.role,
-        dateOfBirth: patientData.dateOfBirth || '',
-        gender: patientData.gender || '',
-        phone: patientData.phone || '',
-        emergencyContact: patientData.emergencyContact || '',
+        phone: req.user.phone || "",
+        dateOfBirth: patientData.dateOfBirth || "",
+        gender: patientData.gender || "",
+        emergencyContact: patientData.emergencyContact || "",
         medicalHistory: patientData.medicalHistory || [],
         allergies: patientData.allergies || [],
       },
     });
   } catch (err) {
-    console.error('❌ getProfile error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("getProfile error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// PUT /patient/update – update profile
+// Update patient profile
 exports.updateProfile = async (req, res) => {
   try {
-    const { email, dateOfBirth, gender, phone, emergencyContact, medicalHistory, allergies } = req.body;
+    const {
+      email,
+      dateOfBirth,
+      gender,
+      phone,
+      emergencyContact,
+      medicalHistory,
+      allergies,
+    } = req.body;
 
     let patientData = await PatientData.findOne({ user: req.user._id });
     if (!patientData) patientData = new PatientData({ user: req.user._id });
@@ -44,10 +51,14 @@ exports.updateProfile = async (req, res) => {
     if (email) patientData.email = email;
     if (dateOfBirth) patientData.dateOfBirth = new Date(dateOfBirth);
     if (gender) patientData.gender = gender;
-    if (phone) patientData.phone = phone;
     if (emergencyContact) patientData.emergencyContact = emergencyContact;
     if (medicalHistory) patientData.medicalHistory = medicalHistory;
     if (allergies) patientData.allergies = allergies;
+
+    if (phone) {
+      req.user.phone = phone;
+      await req.user.save();
+    }
 
     await patientData.save();
 
@@ -57,31 +68,24 @@ exports.updateProfile = async (req, res) => {
       data: patientData,
     });
   } catch (err) {
-    console.error('❌ updateProfile error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("updateProfile error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// GET /patient/data – full patient data including assigned doctor
-// GET /patient/data – full patient data including assigned doctor and appointments
+// Get full patient data
 exports.getPatientData = async (req, res) => {
   try {
     const data = await PatientData.findOne({ user: req.user._id })
-      .populate('assignedDoctor', 'firstName lastName specialization hospital')
-      .populate('appointments.doctor', 'firstName lastName specialization hospital')
-      .populate('user', 'firstName lastName email role'); // <- populate user info
+      .populate("assignedDoctor", "firstName lastName specialization phone hospital")
+      .populate("appointments.doctor", "firstName lastName specialization phone hospital")
+      .populate("user", "firstName lastName email role phone");
 
-         
-      console.log('Patient Data:', data);
+    if (!data) return res.status(404).json({ message: "Patient data not found" });
 
-    if (!data) {
-      return res.status(404).json({ message: 'Patient data not found' });
-    }
-
-    // Filter upcoming appointments
     const upcomingAppointments = data.appointments
-      .filter(app => app.status === 'upcoming')
-      .sort((a, b) => a.date - b.date); // sort by date ascending
+      .filter(a => a.status === "upcoming")
+      .sort((a, b) => a.date - b.date);
 
     res.json({
       success: true,
@@ -89,11 +93,10 @@ exports.getPatientData = async (req, res) => {
         id: data.user,
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
-        phone: data.phone,
+        phone: data.user.phone,
         emergencyContact: data.emergencyContact,
         medicalHistory: data.medicalHistory,
         allergies: data.allergies,
-        history: data.history,
         reports: data.reports,
         aiPredictions: data.aiPredictions,
         assignedDoctor: data.assignedDoctor || null,
@@ -101,83 +104,104 @@ exports.getPatientData = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("❌ getPatientData error:", err);
- 
-    res.status(500).json({ message: 'Server error' });
+    console.error("getPatientData error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-
-// POST /patient/assign-doctor – assign a doctor
+// Assign doctor to patient
 exports.assignDoctor = async (req, res) => {
   try {
     const { doctorId } = req.body;
+    const userId = req.user._id;
 
-    const patientData = await PatientData.findOne({ user: req.user._id });
-    if (!patientData) return res.status(404).json({ message: "Patient not found" });
+    const patientData = await PatientData.findOne({ user: userId }).populate(
+      "user",
+      "firstName lastName email"
+    );
+
+    if (!patientData) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
 
     patientData.assignedDoctor = doctorId;
+
+    patientData.appointments.push({
+      doctor: doctorId,
+      specialty: patientData.problem || "General",
+      date: new Date(),
+      status: "upcoming",
+    });
+
     await patientData.save();
 
     res.json({
       success: true,
-      message: 'Doctor assigned successfully',
+      message: "Doctor assigned and appointment created",
       data: patientData,
     });
   } catch (err) {
-    console.error('❌ assignDoctor error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("assignDoctor error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
-// GET /patient/me – full profile + dashboard data
-exports.getDashboardData = async (req, res) => {
+
+// Get assigned doctor
+exports.getAssignedDoctor = async (req, res) => {
   try {
-    let patientData = await PatientData.findOne({ user: req.user._id })
-      .populate('assignedDoctor', 'firstName lastName specialization hospital');
-
-    if (!patientData) {
-      patientData = new PatientData({ user: req.user._id });
-      await patientData.save();
-    }
-
-    // Recent activities – last 5
-    const recentActivities = (patientData.history || [])
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5);
-
-    // Upcoming appointments – for now, we can mock or use future history items with type 'appointment'
-    const upcomingAppointments = (patientData.history || [])
-      .filter(item => item.date && new Date(item.date) > new Date() && item.type === 'appointment')
-      .slice(0, 5)
-      .map(item => ({
-        doctor: item.doctor || (patientData.assignedDoctor ? `${patientData.assignedDoctor.firstName} ${patientData.assignedDoctor.lastName}` : 'TBD'),
-        specialty: item.specialty || patientData.problem || 'General',
-        date: item.date,
-      }));
+    const data = await PatientData.findOne({ user: req.user._id }).populate(
+      "assignedDoctor",
+      "firstName lastName specialization phone hospital"
+    );
 
     res.json({
       success: true,
-      data: {
-        _id: req.user._id,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        email: req.user.email,
-        role: req.user.role,
-        dateOfBirth: patientData.dateOfBirth || '',
-        gender: patientData.gender || '',
-        phone: patientData.phone || '',
-        emergencyContact: patientData.emergencyContact || '',
-        medicalHistory: patientData.medicalHistory || [],
-        allergies: patientData.allergies || [],
-        reports: patientData.reports || [],
-        aiPredictions: patientData.aiPredictions || [],
-        assignedDoctor: patientData.assignedDoctor || null,
-        recentActivities,
-        upcomingAppointments,
-      }
+      data: data?.assignedDoctor || null,
     });
   } catch (err) {
-    console.error('❌ getDashboardData error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("getAssignedDoctor error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Get AI reports
+exports.getMyReports = async (req, res) => {
+  try {
+    const patientData = await PatientData.findOne({ user: req.user._id });
+    if (!patientData) {
+      return res.status(404).json({ success: false, message: "No patient data found" });
+    }
+
+    res.json({ success: true, reports: patientData.reports || [] });
+  } catch (err) {
+    console.error("getMyReports error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Get consultation + latest AI report
+exports.getConsultationForPatient = async (req, res) => {
+  try {
+    const data = await PatientData.findOne({ user: req.user._id });
+    if (!data) {
+      return res.status(404).json({ success: false, message: "Patient not found" });
+    }
+
+    const latestReport =
+      data.reports?.length ? data.reports[data.reports.length - 1] : null;
+
+    const response = {
+      patientName: req.user.firstName + " " + req.user.lastName,
+      riskLevel: latestReport?.report?.prediction || "Unknown",
+      message: latestReport?.report?.message || null,
+      answers: latestReport?.report?.answers || [],
+      consultationReport: data.consultation?.notes || "",
+      medications: data.consultation?.medications || "",
+    };
+
+    res.json({ success: true, data: response });
+  } catch (err) {
+    console.error("getConsultationForPatient error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };

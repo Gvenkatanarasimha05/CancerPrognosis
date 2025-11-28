@@ -1,12 +1,9 @@
 const User = require("../models/User");
 
-
-
-// Get all pending doctors
 const getPendingDoctors = async (req, res) => {
   try {
     const pendingDoctors = await User.find({ role: "doctor", approvalStatus: "pending" })
-      .select("firstName lastName email licenseNumber specialization experience qualification hospital");
+      .select("firstName lastName email phone licenseNumber specialization experience qualification hospital");
 
     res.json(pendingDoctors);
   } catch (error) {
@@ -15,9 +12,6 @@ const getPendingDoctors = async (req, res) => {
   }
 };
 
-
-
-// Approve doctor
 const approveDoctor = async (req, res) => {
   try {
     const doctor = await User.findById(req.params.id);
@@ -33,7 +27,6 @@ const approveDoctor = async (req, res) => {
   }
 };
 
-// Reject doctor
 const rejectDoctor = async (req, res) => {
   try {
     const doctor = await User.findById(req.params.id);

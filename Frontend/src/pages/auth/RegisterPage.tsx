@@ -15,7 +15,7 @@ const RegisterPage: React.FC = () => {
     role: 'patient',
     // Patient fields
     dateOfBirth: '',
-    gender: undefined, // ✅ fixed type error
+    gender: undefined,
     phone: '',
     emergencyContact: '',
     // Doctor fields
@@ -65,8 +65,8 @@ const RegisterPage: React.FC = () => {
           return false;
         }
       } else if (formData.role === 'doctor') {
-        if (!formData.licenseNumber || !formData.specialization) {
-          setError('Please fill in all doctor details.');
+        if (!formData.licenseNumber || !formData.specialization || !formData.phone) {
+          setError('Please fill in all doctor details (including phone number).');
           return false;
         }
       }
@@ -113,6 +113,7 @@ const RegisterPage: React.FC = () => {
         payload.experience = formData.experience;
         payload.qualification = formData.qualification;
         payload.hospital = formData.hospital;
+        payload.phone = formData.phone;  // ⭐ DOCTOR PHONE FIX
       }
 
       const success = await register(payload);
@@ -138,6 +139,7 @@ const RegisterPage: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
+          
           {/* Progress Indicator */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
@@ -165,8 +167,10 @@ const RegisterPage: React.FC = () => {
             </div>
           </div>
 
+          {/* FORM */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Step 1: Role */}
+
+            {/* -------- STEP 1: ROLE -------- */}
             {step === 1 && (
               <div className="space-y-6">
                 <div>
@@ -174,6 +178,8 @@ const RegisterPage: React.FC = () => {
                     I am registering as:
                   </label>
                   <div className="grid grid-cols-1 gap-4">
+
+                    {/* Patient */}
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, role: 'patient' })}
@@ -192,6 +198,7 @@ const RegisterPage: React.FC = () => {
                       </div>
                     </button>
 
+                    {/* Doctor */}
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, role: 'doctor' })}
@@ -222,65 +229,65 @@ const RegisterPage: React.FC = () => {
               </div>
             )}
 
-            {/* Step 2: Basic Info */}
+            {/* -------- STEP 2: BASIC INFO -------- */}
             {step === 2 && (
               <div className="space-y-6">
+
+                {/* Name */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
+                    <label className="block text-sm font-medium text-gray-700">First Name</label>
                     <input
-                      id="firstName"
                       name="firstName"
                       type="text"
                       required
                       value={formData.firstName}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2"
                     />
                   </div>
                   <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name</label>
+                    <label className="block text-sm font-medium text-gray-700">Last Name</label>
                     <input
-                      id="lastName"
                       name="lastName"
                       type="text"
                       required
                       value={formData.lastName}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2"
                     />
                   </div>
                 </div>
 
+                {/* Email */}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
                   <input
-                    id="email"
                     name="email"
                     type="email"
                     required
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2"
                   />
                 </div>
 
+                {/* Password */}
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-                  <div className="mt-1 relative">
+                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <div className="relative mt-1">
                     <input
-                      id="password"
                       name="password"
                       type={showPassword ? 'text' : 'password'}
                       required
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 pr-12"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      className="absolute right-3 top-2.5"
                     >
                       {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
                     </button>
@@ -290,37 +297,42 @@ const RegisterPage: React.FC = () => {
                 {error && <div className="text-red-600 text-sm text-center">{error}</div>}
 
                 <div className="flex space-x-4">
-                  <button type="button" onClick={prevStep} className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">Back</button>
-                  <button type="button" onClick={nextStep} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors">Continue</button>
+                  <button onClick={prevStep} type="button" className="flex-1 bg-gray-200 py-3 rounded-lg">
+                    Back
+                  </button>
+                  <button onClick={nextStep} type="button" className="flex-1 bg-blue-600 text-white py-3 rounded-lg">
+                    Continue
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* Step 3: Role-specific */}
+            {/* -------- STEP 3: ROLE DETAIL -------- */}
             {step === 3 && (
               <div className="space-y-6">
-                {formData.role === 'patient' ? (
+
+                {/* PATIENT DETAILS */}
+                {formData.role === 'patient' && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">Date of Birth</label>
+                        <label className="block text-sm font-medium">Date of Birth</label>
                         <input
-                          id="dateOfBirth"
                           name="dateOfBirth"
                           type="date"
-                          value={formData.dateOfBirth || ''}
+                          value={formData.dateOfBirth}
                           onChange={handleInputChange}
-                          className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="mt-1 w-full border px-3 py-2 rounded-lg"
                         />
                       </div>
+
                       <div>
-                        <label htmlFor="gender" className="block text-sm font-medium text-gray-700">Gender</label>
+                        <label className="block text-sm font-medium">Gender</label>
                         <select
-                          id="gender"
                           name="gender"
                           value={formData.gender ?? ''}
                           onChange={handleInputChange}
-                          className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="mt-1 w-full border px-3 py-2 rounded-lg"
                         >
                           <option value="" disabled>Select Gender</option>
                           <option value="male">Male</option>
@@ -329,86 +341,100 @@ const RegisterPage: React.FC = () => {
                         </select>
                       </div>
                     </div>
+
                     <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone Number</label>
+                      <label className="block text-sm font-medium">Phone Number</label>
                       <input
-                        id="phone"
                         name="phone"
                         type="tel"
-                        value={formData.phone || ''}
+                        value={formData.phone}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="mt-1 w-full border px-3 py-2 rounded-lg"
                       />
                     </div>
+
                     <div>
-                      <label htmlFor="emergencyContact" className="block text-sm font-medium text-gray-700">Emergency Contact</label>
+                      <label className="block text-sm font-medium">Emergency Contact</label>
                       <input
-                        id="emergencyContact"
                         name="emergencyContact"
                         type="tel"
-                        value={formData.emergencyContact || ''}
+                        value={formData.emergencyContact}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="mt-1 w-full border px-3 py-2 rounded-lg"
                       />
                     </div>
                   </>
-                ) : (
+                )}
+
+                {/* DOCTOR DETAILS */}
+                {formData.role === 'doctor' && (
                   <>
                     <div>
-                      <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700">License Number</label>
+                      <label className="block text-sm font-medium">License Number</label>
                       <input
-                        id="licenseNumber"
                         name="licenseNumber"
                         type="text"
-                        value={formData.licenseNumber || ''}
+                        value={formData.licenseNumber}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        className="mt-1 w-full border px-3 py-2 rounded-lg"
                       />
                     </div>
+
                     <div>
-                      <label htmlFor="specialization" className="block text-sm font-medium text-gray-700">Specialization</label>
+                      <label className="block text-sm font-medium">Specialization</label>
                       <input
-                        id="specialization"
                         name="specialization"
                         type="text"
-                        value={formData.specialization || ''}
+                        value={formData.specialization}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        className="mt-1 w-full border px-3 py-2 rounded-lg"
                       />
                     </div>
+
+                    {/* ⭐ DOCTOR PHONE NUMBER (NEW) */}
+                    <div>
+                      <label className="block text-sm font-medium">Phone Number</label>
+                      <input
+                        name="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="mt-1 w-full border px-3 py-2 rounded-lg"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label htmlFor="experience" className="block text-sm font-medium text-gray-700">Experience (years)</label>
+                        <label className="block text-sm font-medium">Experience (years)</label>
                         <input
-                          id="experience"
                           name="experience"
                           type="number"
-                          value={formData.experience || ''}
+                          value={formData.experience}
                           onChange={handleInputChange}
-                          className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="mt-1 w-full border px-3 py-2 rounded-lg"
                         />
                       </div>
+
                       <div>
-                        <label htmlFor="qualification" className="block text-sm font-medium text-gray-700">Qualification</label>
+                        <label className="block text-sm font-medium">Qualification</label>
                         <input
-                          id="qualification"
                           name="qualification"
                           type="text"
-                          value={formData.qualification || ''}
+                          value={formData.qualification}
                           onChange={handleInputChange}
-                          className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          className="mt-1 w-full border px-3 py-2 rounded-lg"
                         />
                       </div>
                     </div>
+
                     <div>
-                      <label htmlFor="hospital" className="block text-sm font-medium text-gray-700">Hospital/Clinic</label>
+                      <label className="block text-sm font-medium">Hospital/Clinic</label>
                       <input
-                        id="hospital"
                         name="hospital"
                         type="text"
-                        value={formData.hospital || ''}
+                        value={formData.hospital}
                         onChange={handleInputChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        className="mt-1 w-full border px-3 py-2 rounded-lg"
                       />
                     </div>
                   </>
@@ -417,8 +443,14 @@ const RegisterPage: React.FC = () => {
                 {error && <div className="text-red-600 text-sm text-center">{error}</div>}
 
                 <div className="flex space-x-4 mt-4">
-                  <button type="button" onClick={prevStep} className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors">Back</button>
-                  <button type="submit" disabled={isLoading} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400">
+                  <button type="button" onClick={prevStep} className="flex-1 bg-gray-200 py-3 rounded-lg">
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-1 bg-blue-600 text-white py-3 rounded-lg disabled:bg-blue-400"
+                  >
                     {isLoading ? 'Creating Account...' : 'Create Account'}
                   </button>
                 </div>
@@ -426,12 +458,16 @@ const RegisterPage: React.FC = () => {
             )}
           </form>
 
+          {/* Login Link */}
           <div className="mt-6 text-center">
             <span className="text-sm text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign in
+              </Link>
             </span>
           </div>
+
         </div>
       </div>
     </div>

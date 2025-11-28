@@ -52,7 +52,7 @@ const LandingPage: React.FC = () => {
               </div>
             ))}
           </Slide>
-          <div className="absolute inset-0 bg-black opacity-40" />
+          <div className="absolute inset-0 bg-black opacity-30" />
         </div>
 
         {/* Foreground Content */}
@@ -210,11 +210,11 @@ const LandingPage: React.FC = () => {
               </p>
               <div className="grid grid-cols-2 gap-8">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">10K+</div>
+                  <div className="text-3xl font-bold text-blue-600 mb-2">100+</div>
                   <div className="text-gray-600">Active Patients</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-teal-600 mb-2">500+</div>
+                  <div className="text-3xl font-bold text-teal-600 mb-2">20+</div>
                   <div className="text-gray-600">Certified Doctors</div>
                 </div>
                 <div className="text-center">

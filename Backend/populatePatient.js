@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const PatientData = require('./models/PatientData');
-const User = require('./models/User'); // important
 
 async function populatePatientData() {
   try {
@@ -13,10 +12,8 @@ async function populatePatientData() {
 
     console.log('MongoDB connected');
 
-    // Find a patient
     const patient = await PatientData.findOne({ patientId: 1 }).populate('user');
     console.log('Patient Data:', patient);
-
   } catch (err) {
     console.error('Error populating patient data:', err);
   } finally {

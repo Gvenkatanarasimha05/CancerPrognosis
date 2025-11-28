@@ -1,29 +1,43 @@
 const express = require("express");
 const router = express.Router();
+const { protect } = require("../middleware/auth");
+
 const {
   getDoctorProfile,
   updateDoctorProfile,
-  getPatients,
-  getPatientById,
+  getAssignedPatients,
   assignPatientToDoctor,
+  getPatientById,
   addPatientReport,
   getPatientAIPredictions,
   getAllDoctors,
+  getConsultation,
+  updateConsultation,
+  getDoctorAppointments,
+  getTodayAppointments,
+  getCompletedCount,
+  getCompletedAppointments,
+  createDoctorAppointment
 } = require("../controllers/doctorController");
-const { protect } = require("../middleware/auth");
 
-// Doctor Profile
-router.get('/me', protect, getDoctorProfile);      
-router.put('/update', protect, updateDoctorProfile);
+router.get("/profile", protect, getDoctorProfile);
+router.put("/profile", protect, updateDoctorProfile);
 
-// Patients
-router.get("/patients", protect, getPatients);
-router.get("/doctor/patients/:id", protect, getPatientById);
-router.post("/patients/:id/assign", protect, assignPatientToDoctor);
-router.post("/doctor/patients/:id/report", protect, addPatientReport);
-router.get("/doctor/patients/:id/predictions", protect, getPatientAIPredictions);
+router.get("/assigned", protect, getAssignedPatients);
+router.post("/assign/:id", protect, assignPatientToDoctor);
 
-// Fetch all doctors (open endpoint, no login required)
-router.get("/doctors", getAllDoctors);
+router.get("/patient/:id", protect, getPatientById);
+router.post("/patient/:id/report", protect, addPatientReport);
+router.get("/patient/:id/predictions", protect, getPatientAIPredictions);
+
+router.get("/appointments", protect, getDoctorAppointments);
+router.get("/appointments/today", protect, getTodayAppointments);
+router.get("/appointments/completed", protect, getCompletedAppointments);
+router.post("/appointments/create", protect, createDoctorAppointment);
+
+router.get("/consultation", protect, getConsultation);
+router.post("/consultation/update", protect, updateConsultation);
+
+router.get("/doctors", protect, getAllDoctors);
 
 module.exports = router;
