@@ -2,4 +2,5 @@
 builder = "paketobuildpacks/builder:base"
 
 [deploy]
-startCommand = "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120"
+start = "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120"
+
