@@ -1,2 +1,2 @@
 [deploy]
-start = "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120"
+start = "gunicorn app:app --bind 0.0.0.0:$PORT --timeout 200 --log-level debug --capture-output --error-logfile -"
