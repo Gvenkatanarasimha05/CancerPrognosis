@@ -11,6 +11,8 @@ const Appointment = require("./models/Appointment");
 const PatientData = require("./models/PatientData");
 const sendEmail = require("./utils/sendEmail");
 
+const createAdminIfNotExists = require("./utils/createAdmin");  // <-- ADDED
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -69,6 +71,8 @@ mongoose
   .then(async () => {
     console.log("MongoDB connected");
 
+    await createAdminIfNotExists();  // <-- ADDED (This actually creates admin)
+
     cron.schedule("*/1 * * * *", async () => {
       try {
         const now = new Date();
@@ -95,13 +99,11 @@ mongoose
           const name = patient.user.firstName;
 
           if (diff === 1440) {
-            const msg = `Reminder: You have an appointment tomorrow at ${appt.startTime}.`;
-            await sendEmail(name, msg, email);
+            await sendEmail(name, `Reminder: You have an appointment tomorrow at ${appt.startTime}.`, email);
           }
 
           if (diff === 60) {
-            const msg = `Reminder: Your appointment is in 1 hour at ${appt.startTime}.`;
-            await sendEmail(name, msg, email);
+            await sendEmail(name, `Reminder: Your appointment is in 1 hour at ${appt.startTime}.`, email);
           }
         }
       } catch (err) {
