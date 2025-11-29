@@ -10,7 +10,7 @@ export const useAuth = () => {
   return context;
 };
 
-const API_URL = 'http://localhost:4000/api/auth';
+const API_URL = 'https://cancerprognosis.onrender.com/api';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
