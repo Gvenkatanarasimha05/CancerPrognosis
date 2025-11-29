@@ -29,7 +29,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (data: RegisterData): Promise<boolean> => {
     setIsLoading(true);
     try {
-      await axios.post(`${API_URL}/register`, data);
+      await axios.post(`${API_URL}/auth/register`, data);
+
       return true;
     } catch (err: any) {
       throw new Error(err.response?.data?.message ?? 'Registration failed');
